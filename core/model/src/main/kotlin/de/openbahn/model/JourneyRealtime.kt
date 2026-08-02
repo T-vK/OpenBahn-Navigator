@@ -5,12 +5,18 @@ fun StopEvent.withRealtimeFrom(other: StopEvent): StopEvent {
     val otherDelay = other.delayMinutes ?: 0
     val thisDelay = delayMinutes ?: 0
     val otherHasPrognosis = other.prognosedTime != null && other.prognosedTime != scheduledTime
-    val thisHasPrognosis = prognosedTime != null && prognosedTime != scheduledTime
-    if (otherDelay <= thisDelay && !otherHasPrognosis) return this
+    val shouldMergeDelay = otherDelay > thisDelay || otherHasPrognosis
+    val platformChanged = !other.platform.isNullOrBlank() && other.platform != platform
+    val cancelledUpdate = other.cancelled && !cancelled
+    if (!shouldMergeDelay && !platformChanged && !cancelledUpdate) return this
     return copy(
-        prognosedTime = other.prognosedTime ?: prognosedTime,
-        delayMinutes = other.delayMinutes ?: delayMinutes,
-        platform = other.platform ?: platform,
+        prognosedTime = if (shouldMergeDelay) other.prognosedTime ?: prognosedTime else prognosedTime,
+        delayMinutes = if (shouldMergeDelay) other.delayMinutes ?: delayMinutes else delayMinutes,
+        platform = when {
+            platformChanged -> other.platform
+            shouldMergeDelay -> other.platform ?: platform
+            else -> platform
+        },
         cancelled = other.cancelled || cancelled,
     )
 }
@@ -44,13 +50,29 @@ fun Journey.withRealtimeFrom(refreshed: Journey): Journey {
     )
 }
 
-/** Applies station-board realtime (ezZeit) onto a leg endpoint. */
-fun StopEvent.withBoardRealtime(scheduled: String, prognosed: String?, delayMinutes: Int?): StopEvent {
-    val effectiveDelay = delayMinutes ?: delayMinutesFromTimes(scheduled, prognosed) ?: return this
-    if (effectiveDelay <= 0 && (prognosed == null || prognosed == scheduledTime)) return this
+/** Applies station-board realtime (ezZeit, gleis) onto a leg endpoint. */
+fun StopEvent.withBoardRealtime(
+    scheduled: String,
+    prognosed: String?,
+    delayMinutes: Int?,
+    platform: String? = null,
+): StopEvent {
+    val effectiveDelay = delayMinutes ?: delayMinutesFromTimes(scheduled, prognosed)
+    val hasDelayUpdate = (effectiveDelay ?: 0) > 0 ||
+        (!prognosed.isNullOrBlank() && prognosed != scheduledTime)
+    val platformChanged = !platform.isNullOrBlank() && platform != this.platform
+    if (!hasDelayUpdate && !platformChanged) return this
     return copy(
-        prognosedTime = prognosed ?: prognosedTime,
-        delayMinutes = maxOf(delayMinutes ?: 0, effectiveDelay).takeIf { it > 0 },
+        prognosedTime = if (hasDelayUpdate) prognosed ?: prognosedTime else prognosedTime,
+        delayMinutes = if (hasDelayUpdate && effectiveDelay != null) {
+            maxOf(this.delayMinutes ?: 0, effectiveDelay).takeIf { it > 0 }
+        } else {
+            delayMinutes
+        },
+        platform = when {
+            platformChanged -> platform
+            else -> this.platform
+        },
     )
 }
 

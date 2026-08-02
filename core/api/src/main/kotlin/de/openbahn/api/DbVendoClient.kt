@@ -20,7 +20,6 @@ import de.openbahn.model.Location
 import de.openbahn.model.StopEvent
 import de.openbahn.model.StationBoard
 import de.openbahn.model.TransportProduct
-import de.openbahn.model.maxDelayMinutes
 import de.openbahn.model.withBoardRealtime
 import de.openbahn.model.withRealtimeFrom
 import io.ktor.client.HttpClient
@@ -282,11 +281,7 @@ class DbVendoClient(
                         }
                     }?.let { refreshed -> journey.withRealtimeFrom(refreshed) } ?: journey
 
-                    if (afterRefresh.maxDelayMinutes() > 0) {
-                        afterRefresh
-                    } else {
-                        enrichDelaysFromStationBoards(afterRefresh, from, to, departureCache, arrivalCache)
-                    }
+                    enrichDelaysFromStationBoards(afterRefresh, from, to, departureCache, arrivalCache)
                 }
             }.map { it.await() }
         }
@@ -310,8 +305,14 @@ class DbVendoClient(
                     .getOrDefault(emptyList())
             }
             JourneyBoardMatcher.findDepartureMatch(entries, leg)?.let { match ->
-                val delay = JourneyBoardMatcher.boardDelayMinutes(match) ?: return@let
-                val origin = leg.origin.withBoardRealtime(match.scheduledTime, match.prognosedTime, delay)
+                val delay = JourneyBoardMatcher.boardDelayMinutes(match)
+                val origin = leg.origin.withBoardRealtime(
+                    match.scheduledTime,
+                    match.prognosedTime,
+                    delay,
+                    platform = match.platform,
+                )
+                if (origin == leg.origin) return@let
                 result = result.copy(
                     legs = result.legs.mapIndexed { i, l -> if (i == 0) l.copy(origin = origin) else l },
                     departure = origin.prognosedTime ?: origin.scheduledTime,
@@ -329,12 +330,14 @@ class DbVendoClient(
                     .getOrDefault(emptyList())
             }
             JourneyBoardMatcher.findArrivalMatch(entries, leg)?.let { match ->
-                val delay = JourneyBoardMatcher.boardDelayMinutes(match) ?: return@let
+                val delay = JourneyBoardMatcher.boardDelayMinutes(match)
                 val destination = leg.destination.withBoardRealtime(
                     match.scheduledTime,
                     match.prognosedTime,
                     delay,
+                    platform = match.platform,
                 )
+                if (destination == leg.destination) return@let
                 result = result.copy(
                     legs = result.legs.mapIndexed { i, l ->
                         if (i == legIndex) l.copy(destination = destination) else l

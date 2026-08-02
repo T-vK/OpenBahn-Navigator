@@ -46,4 +46,52 @@ class JourneyRealtimeTest {
         assertEquals("j1", merged.id)
         assertEquals(9, merged.legs.single().origin.delayMinutes)
     }
+
+    @Test
+    fun withRealtimeFrom_appliesPlatformChangeWithoutDelayUpdate() {
+        val search = Journey(
+            id = "j1",
+            legs = listOf(
+                Leg(
+                    origin = StopEvent(
+                        "A",
+                        scheduledTime = "2026-05-30T12:00:00",
+                        platform = "3",
+                    ),
+                    destination = StopEvent("B", scheduledTime = "2026-05-30T14:00:00"),
+                ),
+            ),
+            durationMinutes = 120,
+            transfers = 0,
+            departure = "2026-05-30T12:00:00",
+            arrival = "2026-05-30T14:00:00",
+        )
+        val refreshed = search.copy(
+            legs = listOf(
+                search.legs.single().copy(
+                    origin = search.legs.single().origin.copy(platform = "7"),
+                ),
+            ),
+        )
+
+        val merged = search.withRealtimeFrom(refreshed)
+
+        assertEquals("7", merged.legs.single().origin.platform)
+        assertNull(merged.legs.single().origin.delayMinutes)
+    }
+
+    @Test
+    fun withBoardRealtime_appliesPlatformWithoutDelay() {
+        val stop = StopEvent("A", scheduledTime = "2026-05-30T12:00:00", platform = "3")
+
+        val merged = stop.withBoardRealtime(
+            scheduled = "2026-05-30T12:00:00",
+            prognosed = null,
+            delayMinutes = null,
+            platform = "7",
+        )
+
+        assertEquals("7", merged.platform)
+        assertNull(merged.delayMinutes)
+    }
 }
