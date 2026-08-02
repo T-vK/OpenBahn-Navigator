@@ -26,17 +26,16 @@ fun Journey.withRealtimeFrom(refreshed: Journey): Journey {
     if (refreshed.legs.isEmpty()) return this
     val mergedLegs = legs.mapIndexed { index, leg ->
         val ref = refreshed.legs.getOrNull(index) ?: return@mapIndexed leg
+        val refStops = ref.realtimeReferenceStops()
         leg.copy(
             origin = leg.origin.withRealtimeFrom(ref.origin),
             destination = leg.destination.withRealtimeFrom(ref.destination),
-            intermediateStops = leg.intermediateStops.mapIndexed { stopIndex, stop ->
-                ref.intermediateStops.getOrNull(stopIndex)?.let { stop.withRealtimeFrom(it) } ?: stop
-            },
-            priorStops = leg.priorStops.mapIndexed { stopIndex, stop ->
-                ref.priorStops.getOrNull(stopIndex)?.let { stop.withRealtimeFrom(it) } ?: stop
-            },
-            routeStops = leg.routeStops.mapIndexed { stopIndex, stop ->
-                ref.routeStops.getOrNull(stopIndex)?.let { stop.withRealtimeFrom(it) } ?: stop
+            intermediateStops = leg.intermediateStops.withDelaysFrom(refStops),
+            priorStops = leg.priorStops.withDelaysFrom(refStops),
+            routeStops = when {
+                leg.routeStops.isNotEmpty() -> leg.routeStops.withDelaysFrom(refStops)
+                ref.routeStops.isNotEmpty() -> ref.routeStops
+                else -> emptyList()
             },
         )
     }

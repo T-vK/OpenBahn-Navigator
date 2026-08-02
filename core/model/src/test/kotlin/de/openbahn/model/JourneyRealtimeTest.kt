@@ -94,4 +94,49 @@ class JourneyRealtimeTest {
         assertEquals("7", merged.platform)
         assertNull(merged.delayMinutes)
     }
+
+    @Test
+    fun withRealtimeFrom_mergesIntermediateStopDelaysByStationName() {
+        val search = Journey(
+            id = "j1",
+            legs = listOf(
+                Leg(
+                    origin = StopEvent("Hamburg Hbf", scheduledTime = "2026-06-01T08:00:00", id = "8002549"),
+                    destination = StopEvent("Berlin Hbf", scheduledTime = "2026-06-01T11:00:00", id = "8011160"),
+                    intermediateStops = listOf(
+                        StopEvent("Hannover Hbf", scheduledTime = "2026-06-01T09:20:00", id = "8000152"),
+                    ),
+                ),
+            ),
+            durationMinutes = 180,
+            transfers = 0,
+            departure = "2026-06-01T08:00:00",
+            arrival = "2026-06-01T11:00:00",
+        )
+        val refreshed = search.copy(
+            legs = listOf(
+                search.legs.single().copy(
+                    routeStops = listOf(
+                        StopEvent("Hamburg Hbf", scheduledTime = "2026-06-01T08:00:00", id = "8002549"),
+                        StopEvent(
+                            "Hannover Hbf",
+                            scheduledTime = "2026-06-01T09:20:00",
+                            prognosedTime = "2026-06-01T09:28:00",
+                            delayMinutes = 8,
+                            id = "8000152",
+                            platform = "5",
+                        ),
+                        StopEvent("Berlin Hbf", scheduledTime = "2026-06-01T11:00:00", id = "8011160"),
+                    ),
+                ),
+            ),
+        )
+
+        val merged = search.withRealtimeFrom(refreshed)
+
+        val via = merged.legs.single().intermediateStops.single()
+        assertEquals(8, via.delayMinutes)
+        assertEquals("5", via.platform)
+        assertEquals("2026-06-01T09:28:00", via.prognosedTime)
+    }
 }

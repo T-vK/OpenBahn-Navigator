@@ -88,3 +88,13 @@ fun List<StopEvent>.withDelaysFrom(reference: List<StopEvent>): List<StopEvent> 
         }
         match?.let { stop.withRealtimeFrom(it) } ?: stop
     }
+
+/** EVA-backed [Location] for station-board API calls when [StopEvent.id] is present. */
+fun StopEvent.boardLocation(): Location? {
+    val eva = id?.takeIf { it.isNotBlank() } ?: return null
+    return Location(id = eva, name = name, evaNumber = eva)
+}
+
+/** Full stop list from refresh payloads used to merge realtime onto passenger segment stops. */
+fun Leg.realtimeReferenceStops(): List<StopEvent> =
+    routeStops.ifEmpty { tripRouteStops() }

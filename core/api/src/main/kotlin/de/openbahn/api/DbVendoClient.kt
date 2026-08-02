@@ -20,6 +20,7 @@ import de.openbahn.model.Location
 import de.openbahn.model.StopEvent
 import de.openbahn.model.StationBoard
 import de.openbahn.model.TransportProduct
+import de.openbahn.model.boardLocation
 import de.openbahn.model.withBoardRealtime
 import de.openbahn.model.withRealtimeFrom
 import io.ktor.client.HttpClient
@@ -295,58 +296,166 @@ class DbVendoClient(
         arrivalCache: MutableMap<String, List<BoardEntry>>,
     ): Journey {
         var result = journey
-        if (from != null && journey.legs.isNotEmpty()) {
-            val leg = journey.legs.first()
-            val whenTime = parseLocalDateTime(leg.origin.scheduledTime)
-            if (whenTime != null) {
-            val cacheKey = boardCacheKey(from, whenTime)
-            val entries = departureCache.getOrPut(cacheKey) {
-                runCatching { departures(from, whenTime, durationMinutes = BOARD_LOOKUP_MINUTES) }
-                    .getOrDefault(emptyList())
-            }
-            JourneyBoardMatcher.findDepartureMatch(entries, leg)?.let { match ->
-                val delay = JourneyBoardMatcher.boardDelayMinutes(match)
-                val origin = leg.origin.withBoardRealtime(
-                    match.scheduledTime,
-                    match.prognosedTime,
-                    delay,
-                    platform = match.platform,
-                )
-                if (origin == leg.origin) return@let
-                result = result.copy(
-                    legs = result.legs.mapIndexed { i, l -> if (i == 0) l.copy(origin = origin) else l },
-                    departure = origin.prognosedTime ?: origin.scheduledTime,
-                )
-            }
-            }
-        }
-        if (to != null && result.legs.isNotEmpty()) {
-            val legIndex = result.legs.lastIndex
+        val railLegIndices = result.legs.indices.filter { !result.legs[it].isWalking }
+        if (railLegIndices.isEmpty()) return result
+
+        for (legIndex in railLegIndices) {
             val leg = result.legs[legIndex]
-            val whenTime = parseLocalDateTime(leg.destination.scheduledTime) ?: return result
-            val cacheKey = boardCacheKey(to, whenTime)
-            val entries = arrivalCache.getOrPut(cacheKey) {
-                runCatching { arrivals(to, whenTime, durationMinutes = BOARD_LOOKUP_MINUTES) }
-                    .getOrDefault(emptyList())
+            val isFirstRail = legIndex == railLegIndices.first()
+            val isLastRail = legIndex == railLegIndices.last()
+
+            val depStation = if (isFirstRail && from != null) from else leg.origin.boardLocation()
+            depStation?.let { station ->
+                parseLocalDateTime(leg.origin.scheduledTime)?.let { whenTime ->
+                    result = enrichLegOriginFromDepartures(
+                        journey = result,
+                        legIndex = legIndex,
+                        station = station,
+                        whenTime = whenTime,
+                        departureCache = departureCache,
+                    )
+                }
             }
-            JourneyBoardMatcher.findArrivalMatch(entries, leg)?.let { match ->
-                val delay = JourneyBoardMatcher.boardDelayMinutes(match)
-                val destination = leg.destination.withBoardRealtime(
-                    match.scheduledTime,
-                    match.prognosedTime,
-                    delay,
-                    platform = match.platform,
-                )
-                if (destination == leg.destination) return@let
-                result = result.copy(
-                    legs = result.legs.mapIndexed { i, l ->
-                        if (i == legIndex) l.copy(destination = destination) else l
-                    },
-                    arrival = destination.prognosedTime ?: destination.scheduledTime,
-                )
+
+            val currentLeg = result.legs[legIndex]
+            val arrStation = if (isLastRail && to != null) to else currentLeg.destination.boardLocation()
+            arrStation?.let { station ->
+                parseLocalDateTime(currentLeg.destination.scheduledTime)?.let { whenTime ->
+                    result = enrichLegDestinationFromArrivals(
+                        journey = result,
+                        legIndex = legIndex,
+                        station = station,
+                        whenTime = whenTime,
+                        arrivalCache = arrivalCache,
+                    )
+                }
             }
+
+            result = enrichIntermediateStopsFromBoards(
+                journey = result,
+                legIndex = legIndex,
+                departureCache = departureCache,
+                arrivalCache = arrivalCache,
+            )
         }
         return result
+    }
+
+    private suspend fun enrichLegOriginFromDepartures(
+        journey: Journey,
+        legIndex: Int,
+        station: Location,
+        whenTime: LocalDateTime,
+        departureCache: MutableMap<String, List<BoardEntry>>,
+    ): Journey {
+        val leg = journey.legs[legIndex]
+        val cacheKey = boardCacheKey(station, whenTime)
+        val entries = departureCache.getOrPut(cacheKey) {
+            runCatching { departures(station, whenTime, durationMinutes = BOARD_LOOKUP_MINUTES) }
+                .getOrDefault(emptyList())
+        }
+        val match = JourneyBoardMatcher.findDepartureMatch(entries, leg) ?: return journey
+        val origin = leg.origin.withBoardRealtime(
+            match.scheduledTime,
+            match.prognosedTime,
+            JourneyBoardMatcher.boardDelayMinutes(match),
+            platform = match.platform,
+        )
+        if (origin == leg.origin) return journey
+        return journey.copy(
+            legs = journey.legs.mapIndexed { i, l -> if (i == legIndex) l.copy(origin = origin) else l },
+            departure = if (legIndex == 0) origin.prognosedTime ?: origin.scheduledTime else journey.departure,
+        )
+    }
+
+    private suspend fun enrichLegDestinationFromArrivals(
+        journey: Journey,
+        legIndex: Int,
+        station: Location,
+        whenTime: LocalDateTime,
+        arrivalCache: MutableMap<String, List<BoardEntry>>,
+    ): Journey {
+        val leg = journey.legs[legIndex]
+        val cacheKey = boardCacheKey(station, whenTime)
+        val entries = arrivalCache.getOrPut(cacheKey) {
+            runCatching { arrivals(station, whenTime, durationMinutes = BOARD_LOOKUP_MINUTES) }
+                .getOrDefault(emptyList())
+        }
+        val match = JourneyBoardMatcher.findArrivalMatch(entries, leg) ?: return journey
+        val destination = leg.destination.withBoardRealtime(
+            match.scheduledTime,
+            match.prognosedTime,
+            JourneyBoardMatcher.boardDelayMinutes(match),
+            platform = match.platform,
+        )
+        if (destination == leg.destination) return journey
+        return journey.copy(
+            legs = journey.legs.mapIndexed { i, l ->
+                if (i == legIndex) l.copy(destination = destination) else l
+            },
+            arrival = if (legIndex == journey.legs.lastIndex) {
+                destination.prognosedTime ?: destination.scheduledTime
+            } else {
+                journey.arrival
+            },
+        )
+    }
+
+    private suspend fun enrichIntermediateStopsFromBoards(
+        journey: Journey,
+        legIndex: Int,
+        departureCache: MutableMap<String, List<BoardEntry>>,
+        arrivalCache: MutableMap<String, List<BoardEntry>>,
+    ): Journey {
+        val leg = journey.legs[legIndex]
+        if (leg.intermediateStops.isEmpty()) return journey
+        val updatedStops = leg.intermediateStops.map { stop ->
+            enrichIntermediateStopFromBoards(stop, leg, departureCache, arrivalCache)
+        }
+        if (updatedStops == leg.intermediateStops) return journey
+        return journey.copy(
+            legs = journey.legs.mapIndexed { i, l ->
+                if (i == legIndex) l.copy(intermediateStops = updatedStops) else l
+            },
+        )
+    }
+
+    private suspend fun enrichIntermediateStopFromBoards(
+        stop: StopEvent,
+        leg: Leg,
+        departureCache: MutableMap<String, List<BoardEntry>>,
+        arrivalCache: MutableMap<String, List<BoardEntry>>,
+    ): StopEvent {
+        val station = stop.boardLocation() ?: return stop
+        val whenTime = parseLocalDateTime(stop.scheduledTime) ?: return stop
+        var updated = stop
+
+        val arrivalEntries = arrivalCache.getOrPut(boardCacheKey(station, whenTime)) {
+            runCatching { arrivals(station, whenTime, durationMinutes = BOARD_LOOKUP_MINUTES) }
+                .getOrDefault(emptyList())
+        }
+        JourneyBoardMatcher.findArrivalMatch(arrivalEntries, leg.copy(destination = stop))?.let { match ->
+            updated = updated.withBoardRealtime(
+                match.scheduledTime,
+                match.prognosedTime,
+                JourneyBoardMatcher.boardDelayMinutes(match),
+                platform = match.platform,
+            )
+        }
+
+        val departureEntries = departureCache.getOrPut(boardCacheKey(station, whenTime)) {
+            runCatching { departures(station, whenTime, durationMinutes = BOARD_LOOKUP_MINUTES) }
+                .getOrDefault(emptyList())
+        }
+        JourneyBoardMatcher.findDepartureMatch(departureEntries, leg.copy(origin = stop))?.let { match ->
+            updated = updated.withBoardRealtime(
+                match.scheduledTime,
+                match.prognosedTime,
+                JourneyBoardMatcher.boardDelayMinutes(match),
+                platform = match.platform,
+            )
+        }
+        return updated
     }
 
     private fun boardCacheKey(station: Location, whenTime: LocalDateTime): String =
