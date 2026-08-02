@@ -16,27 +16,24 @@ fun formatTrackingCountdown(totalSeconds: Long): String {
 }
 
 /**
- * Seconds until the next meaningful event for [journey]: departure while still before it, otherwise
- * arrival at the final rail stop.
+ * Seconds until departure at the first rail leg (prognosed when available). Stays at 0 once
+ * departure has passed.
  */
 fun countdownSecondsUntil(journey: Journey, now: LocalDateTime): Long? {
-    val target = countdownTargetTime(journey, now) ?: return null
+    val target = countdownDepartureTime(journey) ?: return null
     return ChronoUnit.SECONDS.between(now, target).coerceAtLeast(0)
 }
 
-/** Soonest positive countdown across all actively tracked journeys. */
+/** Soonest countdown across all actively tracked journeys (departure-based). */
 fun countdownSecondsUntil(tracked: List<TrackedJourneyWithJourney>, now: LocalDateTime): Long? {
     if (tracked.isEmpty()) return null
     return tracked.mapNotNull { countdownSecondsUntil(it.journey, now) }.minOrNull()
 }
 
-internal fun countdownTargetTime(journey: Journey, now: LocalDateTime): LocalDateTime? {
+internal fun countdownDepartureTime(journey: Journey): LocalDateTime? {
     val rails = journey.railLegs()
     if (rails.isEmpty()) return parseJourneyDateTime(journey.departure)
-    val firstDep = eventDateTime(rails.first().origin) ?: parseJourneyDateTime(journey.departure)
-    val lastArr = eventDateTime(rails.last().destination) ?: parseJourneyDateTime(journey.arrival)
-    if (firstDep != null && now.isBefore(firstDep)) return firstDep
-    return lastArr
+    return eventDateTime(rails.first().origin) ?: parseJourneyDateTime(journey.departure)
 }
 
 private fun eventDateTime(event: de.openbahn.model.StopEvent): LocalDateTime? {

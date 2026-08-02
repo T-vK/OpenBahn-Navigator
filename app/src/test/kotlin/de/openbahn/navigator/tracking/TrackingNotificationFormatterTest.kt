@@ -91,7 +91,7 @@ class TrackingNotificationFormatterTest {
             showCountdown = true,
         )!!
 
-        assertEquals("206:00 · Hamburg -> Berlin", content.title)
+        assertEquals("0:00 · Hamburg -> Berlin", content.title)
     }
 
     @Test

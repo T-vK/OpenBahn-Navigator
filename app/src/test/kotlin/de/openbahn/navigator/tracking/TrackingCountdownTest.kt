@@ -26,12 +26,12 @@ class TrackingCountdownTest {
     }
 
     @Test
-    fun countdownSecondsUntil_afterDeparture_countsToArrival() {
+    fun countdownSecondsUntil_afterDeparture_staysAtZero() {
         val journey = journey(
             dep = "2026-05-30T12:30:00",
             arr = "2026-05-30T16:00:00",
         )
-        assertEquals(3600, countdownSecondsUntil(journey, LocalDateTime.of(2026, 5, 30, 15, 0, 0)))
+        assertEquals(0, countdownSecondsUntil(journey, LocalDateTime.of(2026, 5, 30, 15, 0, 0)))
     }
 
     @Test
