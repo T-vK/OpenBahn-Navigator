@@ -1,6 +1,9 @@
 package de.openbahn.navigator.ui.util
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class JourneyFormattersTest {
@@ -18,5 +21,19 @@ class JourneyFormattersTest {
     @Test
     fun formatJourneyClock_iso() {
         assertEquals("08:00", formatJourneyClock("2026-06-01T08:00:00"))
+    }
+
+    @Test
+    fun journeyDateLabelIfNotToday_returnsNullForToday() {
+        val today = java.time.LocalDate.of(2026, 6, 1)
+        assertNull(journeyDateLabelIfNotToday("2026-06-01T08:00:00", referenceDate = today))
+    }
+
+    @Test
+    fun journeyDateLabelIfNotToday_returnsLabelForOtherDay() {
+        val today = java.time.LocalDate.of(2026, 6, 1)
+        val label = journeyDateLabelIfNotToday("2026-06-02T08:00:00", referenceDate = today)
+        assertNotNull(label)
+        assertTrue(label!!.contains("2"))
     }
 }

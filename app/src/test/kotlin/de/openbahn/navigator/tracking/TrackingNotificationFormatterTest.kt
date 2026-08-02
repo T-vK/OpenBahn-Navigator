@@ -69,6 +69,32 @@ class TrackingNotificationFormatterTest {
     }
 
     @Test
+    fun single_withCountdown_prefixesTitle() {
+        val item = tracked(
+            from = "Hamburg",
+            to = "Berlin",
+            legs = listOf(
+                leg(
+                    originName = "Hamburg",
+                    destName = "Berlin",
+                    depScheduled = "2026-05-30T12:30:00",
+                    depPrognosed = "2026-05-30T12:35:00",
+                    arrScheduled = "2026-05-30T16:02:00",
+                    lineName = "RE3",
+                ),
+            ),
+        )
+
+        val content = formatter.format(
+            listOf(item),
+            now = at("2026-05-30T12:36:00"),
+            showCountdown = true,
+        )!!
+
+        assertEquals("206:00 · Hamburg -> Berlin", content.title)
+    }
+
+    @Test
     fun single_boldsStopClosestToNow() {
         val item = tracked(
             from = "Hamburg",

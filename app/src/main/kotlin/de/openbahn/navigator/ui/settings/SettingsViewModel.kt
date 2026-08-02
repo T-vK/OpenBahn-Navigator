@@ -54,6 +54,10 @@ class SettingsViewModel(
                 UserPreferencesRepository.DEFAULT_NEAR_DEPARTURE_CHECK_SECONDS,
             )
 
+    val trackingNotificationCountdownEnabled: StateFlow<Boolean> =
+        userPreferences.trackingNotificationCountdownEnabled
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
     val autoUpdateEnabled: StateFlow<Boolean> = userPreferences.autoUpdateEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
@@ -92,6 +96,12 @@ class SettingsViewModel(
     fun setNearDepartureCheckIntervalSeconds(seconds: Int) {
         viewModelScope.launch {
             userPreferences.setNearDepartureCheckIntervalSeconds(seconds)
+        }
+    }
+
+    fun setTrackingNotificationCountdownEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            userPreferences.setTrackingNotificationCountdownEnabled(enabled)
         }
     }
 

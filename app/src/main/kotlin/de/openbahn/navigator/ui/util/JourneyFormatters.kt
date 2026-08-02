@@ -1,5 +1,10 @@
 package de.openbahn.navigator.ui.util
 
+import de.openbahn.api.JourneySearchTime
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
+
 /**
  * Formats journey duration for display: minutes below 60, otherwise `H:MM` (e.g. 1:05).
  */
@@ -17,4 +22,20 @@ fun formatJourneyClock(isoTime: String): String {
         return isoTime.substring(t + 1, t + 6)
     }
     return isoTime.takeLast(5).takeIf { it.contains(':') } ?: isoTime
+}
+
+private val journeyDateFormatter: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("EEE, d MMM", Locale.getDefault())
+
+/**
+ * Returns a short date label (e.g. `Mon, 3 Aug`) when [isoTime] is not on [referenceDate] in Berlin;
+ * otherwise `null` so callers can show clock time only for today.
+ */
+fun journeyDateLabelIfNotToday(
+    isoTime: String,
+    referenceDate: LocalDate = JourneySearchTime.nowBerlin().toLocalDate(),
+): String? {
+    val dateTime = parseJourneyDateTime(isoTime) ?: return null
+    if (dateTime.toLocalDate() == referenceDate) return null
+    return journeyDateFormatter.format(dateTime)
 }

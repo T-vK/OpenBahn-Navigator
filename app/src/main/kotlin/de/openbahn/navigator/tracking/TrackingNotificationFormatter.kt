@@ -83,26 +83,45 @@ class TrackingNotificationFormatter(private val strings: TrackingNotificationStr
     fun format(
         tracked: List<TrackedJourneyWithJourney>,
         now: LocalDateTime = LocalDateTime.now(),
+        showCountdown: Boolean = false,
     ): TrackingNotificationContent? {
         if (tracked.isEmpty()) return null
-        return if (tracked.size == 1) single(tracked.first(), now) else multi(tracked, now)
+        val countdownSeconds = if (showCountdown) countdownSecondsUntil(tracked, now) else null
+        return if (tracked.size == 1) {
+            single(tracked.first(), now, countdownSeconds)
+        } else {
+            multi(tracked, now, countdownSeconds)
+        }
     }
 
-    private fun single(item: TrackedJourneyWithJourney, now: LocalDateTime): TrackingNotificationContent {
+    private fun single(
+        item: TrackedJourneyWithJourney,
+        now: LocalDateTime,
+        countdownSeconds: Long?,
+    ): TrackingNotificationContent {
         val journey = item.journey
         val stops = stopsOf(journey)
         val builder = StyledTextBuilder()
         appendStopChain(builder, stops, closestIndex(stops, now))
         appendLineLabel(builder, journey.railLegs().firstOrNull(), includeDetail = true)
         val body = builder.build()
+        val routeNames = routeChain(item)
         return TrackingNotificationContent(
-            title = fitRouteTitle(routeChain(item)),
+            title = titleWithCountdown(
+                routeNames = routeNames,
+                baseTitle = fitRouteTitle(routeNames),
+                countdownSeconds = countdownSeconds,
+            ),
             text = body,
             lines = listOf(body),
         )
     }
 
-    private fun multi(tracked: List<TrackedJourneyWithJourney>, now: LocalDateTime): TrackingNotificationContent {
+    private fun multi(
+        tracked: List<TrackedJourneyWithJourney>,
+        now: LocalDateTime,
+        countdownSeconds: Long?,
+    ): TrackingNotificationContent {
         val lines = tracked.flatMap { item ->
             val journey = item.journey
             val stops = stopsOf(journey)
@@ -112,8 +131,13 @@ class TrackingNotificationFormatter(private val strings: TrackingNotificationStr
             appendLineLabel(detailBuilder, journey.railLegs().firstOrNull(), includeDetail = false)
             listOf(routeLine, detailBuilder.build())
         }
+        val baseTitle = strings.multiTitle(tracked.size)
         return TrackingNotificationContent(
-            title = strings.multiTitle(tracked.size),
+            title = if (countdownSeconds != null) {
+                "${formatTrackingCountdown(countdownSeconds)} · $baseTitle"
+            } else {
+                baseTitle
+            },
             text = StyledNotificationText(lines.take(2).joinToString("\n") { it.text }),
             lines = lines,
         )

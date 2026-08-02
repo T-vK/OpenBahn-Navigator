@@ -50,6 +50,7 @@ fun SettingsScreen(
     val deutschlandTicketOnly by viewModel.deutschlandTicketConnectionsOnly.collectAsState()
     val delayNotificationIncrement by viewModel.delayNotificationIncrementMinutes.collectAsState()
     val nearDepartureCheckSeconds by viewModel.nearDepartureCheckIntervalSeconds.collectAsState()
+    val trackingNotificationCountdownEnabled by viewModel.trackingNotificationCountdownEnabled.collectAsState()
     val autoUpdateEnabled by viewModel.autoUpdateEnabled.collectAsState()
     val activity = LocalContext.current as? AppCompatActivity
     var searchQuery by remember { mutableStateOf("") }
@@ -79,6 +80,8 @@ fun SettingsScreen(
                 viewModel.setNearDepartureCheckIntervalSeconds(seconds)
             }
         },
+        trackingNotificationCountdownEnabled = trackingNotificationCountdownEnabled,
+        onTrackingNotificationCountdownChange = viewModel::setTrackingNotificationCountdownEnabled,
         autoUpdateEnabled = autoUpdateEnabled,
         onAutoUpdateEnabledChange = viewModel::setAutoUpdateEnabled,
         onOpenClaims = onOpenClaims,

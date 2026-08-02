@@ -35,6 +35,7 @@ class JourneyTrackingForegroundService : Service() {
     private val serviceJob = SupervisorJob()
     private val serviceScope = CoroutineScope(serviceJob + Dispatchers.Default)
     private var trackingLoopJob: Job? = null
+    private var countdownTickerJob: Job? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -44,15 +45,20 @@ class JourneyTrackingForegroundService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         startForeground(NOTIFICATION_ID, buildForegroundNotification(content = null))
         trackingLoopJob?.cancel()
+        countdownTickerJob?.cancel()
         trackingLoopJob = serviceScope.launch {
             runTrackingLoop()
             stopSelf()
+        }
+        countdownTickerJob = serviceScope.launch {
+            runCountdownTicker()
         }
         return START_STICKY
     }
 
     override fun onDestroy() {
         trackingLoopJob?.cancel()
+        countdownTickerJob?.cancel()
         serviceJob.cancel()
         super.onDestroy()
     }
@@ -64,7 +70,8 @@ class JourneyTrackingForegroundService : Service() {
         while (serviceScope.isActive) {
             val active = repository.getActiveWithJourneyForWorker()
             if (active.isEmpty()) break
-            updateForegroundNotification(active)
+            val countdownEnabled = userPreferences.trackingNotificationCountdownEnabled.first()
+            updateForegroundNotification(active, showCountdown = countdownEnabled)
             try {
                 delayCheck.run()
             } catch (e: Exception) {
@@ -73,7 +80,7 @@ class JourneyTrackingForegroundService : Service() {
             // Reload after the delay check so the notification reflects freshly refreshed times.
             val refreshed = repository.getActiveWithJourneyForWorker()
             if (refreshed.isEmpty()) break
-            updateForegroundNotification(refreshed)
+            updateForegroundNotification(refreshed, showCountdown = countdownEnabled)
             val departures = refreshed.mapNotNull { parseJourneyDateTime(it.entity.departureIso) }
             val nearInterval = userPreferences.nearDepartureCheckIntervalSeconds.first()
             val waitMs = TrackingRefreshPolicy.delayUntilNextCheckMillis(
@@ -84,9 +91,33 @@ class JourneyTrackingForegroundService : Service() {
         }
     }
 
-    private fun updateForegroundNotification(tracked: List<TrackedJourneyWithJourney>) {
+    /** Updates the notification every second while the countdown preference is enabled. */
+    private suspend fun runCountdownTicker() {
+        val repository = getKoin().get<TrackedJourneyRepository>()
+        val userPreferences = getKoin().get<UserPreferencesRepository>()
+        while (serviceScope.isActive) {
+            if (!userPreferences.trackingNotificationCountdownEnabled.first()) {
+                delay(1_000)
+                continue
+            }
+            val active = repository.getActiveWithJourneyForWorker()
+            if (active.isEmpty()) break
+            updateForegroundNotification(active, showCountdown = true)
+            delay(1_000)
+        }
+    }
+
+    private fun updateForegroundNotification(
+        tracked: List<TrackedJourneyWithJourney>,
+        showCountdown: Boolean,
+    ) {
         val manager = getSystemService(NOTIFICATION_SERVICE) as android.app.NotificationManager
-        manager.notify(NOTIFICATION_ID, buildForegroundNotification(notificationFormatter.format(tracked)))
+        manager.notify(
+            NOTIFICATION_ID,
+            buildForegroundNotification(
+                notificationFormatter.format(tracked, showCountdown = showCountdown),
+            ),
+        )
     }
 
     private fun buildForegroundNotification(content: TrackingNotificationContent?): Notification {

@@ -78,6 +78,7 @@ import de.openbahn.navigator.ui.util.NavigateToStopIconButton
 import de.openbahn.navigator.ui.util.ShareJourneyIconButton
 import de.openbahn.navigator.ui.util.formatDurationMinutes
 import de.openbahn.navigator.ui.util.formatJourneyClock
+import de.openbahn.navigator.ui.util.journeyDateLabelIfNotToday
 import de.openbahn.navigator.ui.util.journeyBookingUri
 
 @Composable
@@ -498,6 +499,10 @@ private fun JourneyTimeRangeHeader(
         ?: OnTimeToleranceSettings.DEFAULT_MINUTES
     val depScheduled = first?.scheduledTime ?: journey.departure
     val arrScheduled = last?.scheduledTime ?: journey.arrival
+    val depDisplay = first?.prognosedTime?.takeIf { it.isNotBlank() } ?: depScheduled
+    val arrDisplay = last?.prognosedTime?.takeIf { it.isNotBlank() } ?: arrScheduled
+    val depDateLabel = journeyDateLabelIfNotToday(depDisplay)
+    val arrDateLabel = journeyDateLabelIfNotToday(arrDisplay)
     val depDelay = first?.delayMinutes
         ?: delayMinutesFromTimes(depScheduled, first?.prognosedTime)
         ?: 0
@@ -510,6 +515,7 @@ private fun JourneyTimeRangeHeader(
                 scheduled = depScheduled,
                 prognosed = first?.prognosedTime,
                 delayMinutes = depDelay,
+                dateLabel = depDateLabel,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
                 timelinessProbability = if (predictionsRequested) {
@@ -530,6 +536,7 @@ private fun JourneyTimeRangeHeader(
                 scheduled = arrScheduled,
                 prognosed = last?.prognosedTime,
                 delayMinutes = arrDelay,
+                dateLabel = arrDateLabel,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
                 timelinessProbability = if (predictionsRequested) {
@@ -645,6 +652,7 @@ private fun StopTimeText(
     scheduled: String,
     prognosed: String?,
     delayMinutes: Int,
+    dateLabel: String? = null,
     style: androidx.compose.ui.text.TextStyle,
     fontWeight: FontWeight? = null,
     timelinessProbability: Double? = null,
@@ -664,6 +672,13 @@ private fun StopTimeText(
     val clock = formatJourneyClock(display)
     val percent = timelinessProbability?.let { (it * 100).toInt().coerceIn(0, 100) }
     Column(horizontalAlignment = Alignment.End) {
+        dateLabel?.let { label ->
+            Text(
+                label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         if (showScheduledStruck) {
             Text(
                 stringResource(R.string.scheduled_time_short, formatJourneyClock(scheduled)),
