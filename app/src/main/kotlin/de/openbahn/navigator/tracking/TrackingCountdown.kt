@@ -16,9 +16,20 @@ fun formatTrackingCountdown(totalSeconds: Long): String {
 }
 
 data class TrackingTitleCountdown(
-    val leftSeconds: Long? = null,
-    val rightSeconds: Long? = null,
+    val kind: TrackingCountdownKind? = null,
+    val seconds: Long? = null,
 )
+
+/** Whether the title countdown counts down to departure or arrival. */
+enum class TrackingCountdownKind(val indicator: String) {
+    /** Upwards arrow — train leaving the station. */
+    DEPARTURE("\u2191"),
+    /** Downwards arrow — train approaching destination. */
+    ARRIVAL("\u2193"),
+}
+
+fun TrackingCountdownKind.titlePrefix(seconds: Long): String =
+    "$indicator ${formatTrackingCountdown(seconds)} · "
 
 /**
  * Seconds until departure at the first rail leg (prognosed when available). Stays at 0 once
@@ -75,8 +86,14 @@ fun trackingTitleCountdown(
         null
     }
     return when {
-        departureSeconds != null -> TrackingTitleCountdown(leftSeconds = departureSeconds)
-        arrivalSeconds != null -> TrackingTitleCountdown(rightSeconds = arrivalSeconds)
+        departureSeconds != null -> TrackingTitleCountdown(
+            kind = TrackingCountdownKind.DEPARTURE,
+            seconds = departureSeconds,
+        )
+        arrivalSeconds != null -> TrackingTitleCountdown(
+            kind = TrackingCountdownKind.ARRIVAL,
+            seconds = arrivalSeconds,
+        )
         else -> TrackingTitleCountdown()
     }
 }
@@ -99,8 +116,8 @@ private fun eventDateTime(event: de.openbahn.model.StopEvent): LocalDateTime? {
 }
 
 /**
- * Builds a notification title with an optional departure countdown on the left or an arrival
- * countdown on the right (never both at once).
+ * Builds a notification title with an optional countdown prefix (`↑ 12:34 ·` or `↓ 45:30 ·`)
+ * followed by the route name.
  */
 fun buildTrackingNotificationTitle(
     routeNames: List<String>,
@@ -108,20 +125,13 @@ fun buildTrackingNotificationTitle(
     countdown: TrackingTitleCountdown,
     maxLength: Int = 50,
 ): String {
-    val left = countdown.leftSeconds?.let { "${formatTrackingCountdown(it)} · " }
-    val right = countdown.rightSeconds?.let { " · ${formatTrackingCountdown(it)}" }
-    return when {
-        left != null -> {
-            val routeMax = (maxLength - left.length).coerceAtLeast(8)
-            left + if (routeNames.isEmpty()) baseTitle.take(routeMax) else fitRouteTitle(routeNames, routeMax)
-        }
-        right != null -> {
-            val routeMax = (maxLength - right.length).coerceAtLeast(8)
-            val route = if (routeNames.isEmpty()) baseTitle.take(routeMax) else fitRouteTitle(routeNames, routeMax)
-            route + right
-        }
-        else -> baseTitle
+    val prefix = countdown.kind?.let { kind ->
+        countdown.seconds?.let { kind.titlePrefix(it) }
     }
+    if (prefix == null) return baseTitle
+    val routeMax = (maxLength - prefix.length).coerceAtLeast(8)
+    val route = if (routeNames.isEmpty()) baseTitle.take(routeMax) else fitRouteTitle(routeNames, routeMax)
+    return prefix + route
 }
 
 /** @deprecated Use [buildTrackingNotificationTitle] with [TrackingTitleCountdown]. */
@@ -133,6 +143,9 @@ fun titleWithCountdown(
 ): String = buildTrackingNotificationTitle(
     routeNames = routeNames,
     baseTitle = baseTitle,
-    countdown = TrackingTitleCountdown(leftSeconds = countdownSeconds),
+    countdown = TrackingTitleCountdown(
+        kind = TrackingCountdownKind.DEPARTURE,
+        seconds = countdownSeconds,
+    ),
     maxLength = maxLength,
 )

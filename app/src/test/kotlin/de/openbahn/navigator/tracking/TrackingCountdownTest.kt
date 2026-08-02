@@ -35,25 +35,31 @@ class TrackingCountdownTest {
     }
 
     @Test
-    fun titleWithCountdown_prefixesCountdownAndShortensRoute() {
+    fun buildTrackingNotificationTitle_prefixesDepartureCountdownWithArrow() {
         val title = buildTrackingNotificationTitle(
             routeNames = listOf("Kiel", "Lübeck", "Hamburg"),
             baseTitle = "Kiel -> Lübeck -> Hamburg",
-            countdown = TrackingTitleCountdown(leftSeconds = 754),
+            countdown = TrackingTitleCountdown(
+                kind = TrackingCountdownKind.DEPARTURE,
+                seconds = 754,
+            ),
             maxLength = 50,
         )
-        assertEquals("12:34 · Kiel -> Lübeck -> Hamburg", title)
+        assertEquals("↑ 12:34 · Kiel -> Lübeck -> Hamburg", title)
     }
 
     @Test
-    fun buildTrackingNotificationTitle_suffixesArrivalCountdownOnRight() {
+    fun buildTrackingNotificationTitle_prefixesArrivalCountdownWithArrow() {
         val title = buildTrackingNotificationTitle(
             routeNames = listOf("Kiel", "Lübeck", "Hamburg"),
             baseTitle = "Kiel -> Lübeck -> Hamburg",
-            countdown = TrackingTitleCountdown(rightSeconds = 754),
+            countdown = TrackingTitleCountdown(
+                kind = TrackingCountdownKind.ARRIVAL,
+                seconds = 754,
+            ),
             maxLength = 50,
         )
-        assertEquals("Kiel -> Lübeck -> Hamburg · 12:34", title)
+        assertEquals("↓ 12:34 · Kiel -> Lübeck -> Hamburg", title)
     }
 
     @Test
@@ -91,11 +97,11 @@ class TrackingCountdownTest {
         val afterDeparture = LocalDateTime.of(2026, 5, 30, 13, 0, 0)
 
         assertEquals(
-            TrackingTitleCountdown(leftSeconds = 240),
+            TrackingTitleCountdown(kind = TrackingCountdownKind.DEPARTURE, seconds = 240),
             trackingTitleCountdown(tracked, beforeDeparture, true, true),
         )
         assertEquals(
-            TrackingTitleCountdown(rightSeconds = 10_800),
+            TrackingTitleCountdown(kind = TrackingCountdownKind.ARRIVAL, seconds = 10_800),
             trackingTitleCountdown(tracked, afterDeparture, true, true),
         )
     }

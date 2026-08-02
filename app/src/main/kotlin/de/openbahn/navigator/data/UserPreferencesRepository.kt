@@ -58,7 +58,7 @@ class UserPreferencesRepository(private val context: Context) {
         it[KEY_TRACKING_NOTIFICATION_COUNTDOWN] ?: false
     }
 
-    /** Show arrival countdown on the right of the title after departure. */
+    /** Show arrival countdown at the start of the title after departure. */
     val trackingNotificationArrivalCountdownEnabled: Flow<Boolean> = dataStore.data.map {
         it[KEY_TRACKING_NOTIFICATION_ARRIVAL_COUNTDOWN] ?: false
     }

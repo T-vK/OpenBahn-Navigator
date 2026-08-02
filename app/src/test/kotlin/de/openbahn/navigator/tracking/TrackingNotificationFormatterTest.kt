@@ -91,11 +91,11 @@ class TrackingNotificationFormatterTest {
             showDepartureCountdown = true,
         )!!
 
-        assertEquals("0:00 · Hamburg -> Berlin", content.title)
+        assertEquals("↑ 0:00 · Hamburg -> Berlin", content.title)
     }
 
     @Test
-    fun single_withArrivalCountdown_suffixesTitleAfterDeparture() {
+    fun single_withArrivalCountdown_prefixesTitleAfterDeparture() {
         val item = tracked(
             from = "Hamburg",
             to = "Berlin",
@@ -116,7 +116,7 @@ class TrackingNotificationFormatterTest {
             showArrivalCountdown = true,
         )!!
 
-        assertEquals("Hamburg -> Berlin · 182:00", content.title)
+        assertEquals("↓ 182:00 · Hamburg -> Berlin", content.title)
     }
 
     @Test

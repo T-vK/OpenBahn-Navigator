@@ -125,9 +125,9 @@
     <string name="settings_near_departure_check_seconds">%d s</string>
     <string name="settings_near_departure_check_default">%d s (default)</string>
     <string name="settings_tracking_notification_countdown">Departure countdown in notification</string>
-    <string name="settings_tracking_notification_countdown_hint">Shows remaining time as M:SS on the left of the tracking notification title before departure.</string>
+    <string name="settings_tracking_notification_countdown_hint">Shows remaining time as ↑ M:SS at the start of the tracking notification title before departure.</string>
     <string name="settings_tracking_notification_arrival_countdown">Arrival countdown in notification</string>
-    <string name="settings_tracking_notification_arrival_countdown_hint">After departure, shows remaining time as M:SS on the right of the tracking notification title until arrival.</string>
+    <string name="settings_tracking_notification_arrival_countdown_hint">After departure, shows remaining time as ↓ M:SS at the start of the tracking notification title until arrival.</string>
     <string name="tracking_notification_action_stop">Stop tracking</string>
     <string name="tracking_notification_action_share">Share</string>
     <string name="platform_change_notification_title">Platform change</string>
