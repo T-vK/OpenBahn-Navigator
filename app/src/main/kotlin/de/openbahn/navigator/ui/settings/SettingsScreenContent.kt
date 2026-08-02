@@ -31,6 +31,8 @@ internal fun buildSettingsCategories(
     onNearDepartureCheckIntervalSelect: (Int) -> Unit,
     trackingNotificationCountdownEnabled: Boolean,
     onTrackingNotificationCountdownChange: (Boolean) -> Unit,
+    trackingNotificationArrivalCountdownEnabled: Boolean,
+    onTrackingNotificationArrivalCountdownChange: (Boolean) -> Unit,
     autoUpdateEnabled: Boolean,
     onAutoUpdateEnabledChange: (Boolean) -> Unit,
     onOpenClaims: () -> Unit,
@@ -130,6 +132,19 @@ internal fun buildSettingsCategories(
                     TrackingNotificationCountdownSection(
                         enabled = trackingNotificationCountdownEnabled,
                         onEnabledChange = onTrackingNotificationCountdownChange,
+                    )
+                },
+                SettingsItem(
+                    titleRes = de.openbahn.navigator.R.string.settings_tracking_notification_arrival_countdown,
+                    descriptionRes = de.openbahn.navigator.R.string.settings_tracking_notification_arrival_countdown_hint,
+                    keywordsRes = listOf(
+                        de.openbahn.navigator.R.string.tracking_title,
+                        de.openbahn.navigator.R.string.tracking_foreground_title,
+                    ),
+                ) {
+                    TrackingNotificationCountdownSection(
+                        enabled = trackingNotificationArrivalCountdownEnabled,
+                        onEnabledChange = onTrackingNotificationArrivalCountdownChange,
                     )
                 },
             ),

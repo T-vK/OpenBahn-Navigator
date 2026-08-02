@@ -25,6 +25,7 @@ import de.openbahn.navigator.domain.PredictionUseCase
 import de.openbahn.navigator.location.DeviceLocationProvider
 import de.openbahn.navigator.tracking.DelayNotificationNotifier
 import de.openbahn.navigator.tracking.JourneyTrackingCoordinator
+import de.openbahn.navigator.tracking.PlatformChangeNotifier
 import de.openbahn.navigator.tracking.TrackedJourneyDelayCheckUseCase
 import de.openbahn.navigator.tracking.TrackedJourneyRefreshUseCase
 import de.openbahn.navigator.ui.board.StationBoardViewModel
@@ -73,13 +74,14 @@ val appModule = module {
     single { JourneyTrackingCoordinator(androidContext(), lazy { get<TrackedJourneyRepository>() }) }
     single { TrackedJourneyRepository(get(), get(), lazy { get<JourneyTrackingCoordinator>() }) }
     single { DelayNotificationNotifier(androidContext()) }
+    single { PlatformChangeNotifier(androidContext()) }
     single { PassengerRightsNotifier(androidContext()) }
     single { ClaimDraftRepository(get(), get()) }
     single { PassengerRightsSimulationRepository(get()) }
     single { PassengerRightsRepository(get(), get(), get()) }
     single { TrackedJourneyRightsCheckUseCase(get(), get(), get(), get()) }
-    single { TrackedJourneyRefreshUseCase(get(), get(), get()) }
-    single { TrackedJourneyDelayCheckUseCase(get(), get(), get(), get()) }
+    single { TrackedJourneyRefreshUseCase(get(), get(), get(), get()) }
+    single { TrackedJourneyDelayCheckUseCase(get(), get(), get(), get(), get()) }
     single { DeviceLocationProvider(androidContext()) }
     single<JourneySearchRepository> { JourneySearchUseCase(get(), get()) }
     single { PredictionUseCase(get(), get()) }

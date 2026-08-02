@@ -58,6 +58,10 @@ class SettingsViewModel(
         userPreferences.trackingNotificationCountdownEnabled
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
+    val trackingNotificationArrivalCountdownEnabled: StateFlow<Boolean> =
+        userPreferences.trackingNotificationArrivalCountdownEnabled
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
     val autoUpdateEnabled: StateFlow<Boolean> = userPreferences.autoUpdateEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
@@ -102,6 +106,12 @@ class SettingsViewModel(
     fun setTrackingNotificationCountdownEnabled(enabled: Boolean) {
         viewModelScope.launch {
             userPreferences.setTrackingNotificationCountdownEnabled(enabled)
+        }
+    }
+
+    fun setTrackingNotificationArrivalCountdownEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            userPreferences.setTrackingNotificationArrivalCountdownEnabled(enabled)
         }
     }
 

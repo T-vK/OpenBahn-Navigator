@@ -15,6 +15,11 @@ fun formatTrackingCountdown(totalSeconds: Long): String {
     return "$minutes:${seconds.toString().padStart(2, '0')}"
 }
 
+data class TrackingTitleCountdown(
+    val leftSeconds: Long? = null,
+    val rightSeconds: Long? = null,
+)
+
 /**
  * Seconds until departure at the first rail leg (prognosed when available). Stays at 0 once
  * departure has passed.
@@ -24,10 +29,56 @@ fun countdownSecondsUntil(journey: Journey, now: LocalDateTime): Long? {
     return ChronoUnit.SECONDS.between(now, target).coerceAtLeast(0)
 }
 
-/** Soonest countdown across all actively tracked journeys (departure-based). */
+/** Seconds until arrival at the final rail leg. Stays at 0 once arrival has passed. */
+fun arrivalCountdownSecondsUntil(journey: Journey, now: LocalDateTime): Long? {
+    val target = countdownArrivalTime(journey) ?: return null
+    return ChronoUnit.SECONDS.between(now, target).coerceAtLeast(0)
+}
+
+fun hasDeparted(journey: Journey, now: LocalDateTime): Boolean {
+    val departure = countdownDepartureTime(journey) ?: return false
+    return !now.isBefore(departure)
+}
+
+/** Soonest departure countdown across journeys that have not departed yet. */
 fun countdownSecondsUntil(tracked: List<TrackedJourneyWithJourney>, now: LocalDateTime): Long? {
     if (tracked.isEmpty()) return null
-    return tracked.mapNotNull { countdownSecondsUntil(it.journey, now) }.minOrNull()
+    return tracked
+        .filter { !hasDeparted(it.journey, now) }
+        .mapNotNull { countdownSecondsUntil(it.journey, now) }
+        .minOrNull()
+}
+
+/** Soonest arrival countdown across journeys that have already departed. */
+fun arrivalCountdownSecondsUntil(tracked: List<TrackedJourneyWithJourney>, now: LocalDateTime): Long? {
+    if (tracked.isEmpty()) return null
+    return tracked
+        .filter { hasDeparted(it.journey, now) }
+        .mapNotNull { arrivalCountdownSecondsUntil(it.journey, now) }
+        .minOrNull()
+}
+
+fun trackingTitleCountdown(
+    tracked: List<TrackedJourneyWithJourney>,
+    now: LocalDateTime,
+    showDepartureCountdown: Boolean,
+    showArrivalCountdown: Boolean,
+): TrackingTitleCountdown {
+    val departureSeconds = if (showDepartureCountdown) {
+        countdownSecondsUntil(tracked, now)
+    } else {
+        null
+    }
+    val arrivalSeconds = if (showArrivalCountdown) {
+        arrivalCountdownSecondsUntil(tracked, now)
+    } else {
+        null
+    }
+    return when {
+        departureSeconds != null -> TrackingTitleCountdown(leftSeconds = departureSeconds)
+        arrivalSeconds != null -> TrackingTitleCountdown(rightSeconds = arrivalSeconds)
+        else -> TrackingTitleCountdown()
+    }
 }
 
 internal fun countdownDepartureTime(journey: Journey): LocalDateTime? {
@@ -36,24 +87,52 @@ internal fun countdownDepartureTime(journey: Journey): LocalDateTime? {
     return eventDateTime(rails.first().origin) ?: parseJourneyDateTime(journey.departure)
 }
 
+internal fun countdownArrivalTime(journey: Journey): LocalDateTime? {
+    val rails = journey.railLegs()
+    if (rails.isEmpty()) return parseJourneyDateTime(journey.arrival)
+    return eventDateTime(rails.last().destination) ?: parseJourneyDateTime(journey.arrival)
+}
+
 private fun eventDateTime(event: de.openbahn.model.StopEvent): LocalDateTime? {
     val iso = event.prognosedTime?.takeIf { it.isNotBlank() } ?: event.scheduledTime
     return parseJourneyDateTime(iso)
 }
 
 /**
- * Prefixes [baseTitle] with a countdown when [countdownSeconds] is non-null, keeping the combined
- * title within [maxLength] by shortening the route portion via [fitRouteTitle].
+ * Builds a notification title with an optional departure countdown on the left or an arrival
+ * countdown on the right (never both at once).
  */
+fun buildTrackingNotificationTitle(
+    routeNames: List<String>,
+    baseTitle: String,
+    countdown: TrackingTitleCountdown,
+    maxLength: Int = 50,
+): String {
+    val left = countdown.leftSeconds?.let { "${formatTrackingCountdown(it)} · " }
+    val right = countdown.rightSeconds?.let { " · ${formatTrackingCountdown(it)}" }
+    return when {
+        left != null -> {
+            val routeMax = (maxLength - left.length).coerceAtLeast(8)
+            left + if (routeNames.isEmpty()) baseTitle.take(routeMax) else fitRouteTitle(routeNames, routeMax)
+        }
+        right != null -> {
+            val routeMax = (maxLength - right.length).coerceAtLeast(8)
+            val route = if (routeNames.isEmpty()) baseTitle.take(routeMax) else fitRouteTitle(routeNames, routeMax)
+            route + right
+        }
+        else -> baseTitle
+    }
+}
+
+/** @deprecated Use [buildTrackingNotificationTitle] with [TrackingTitleCountdown]. */
 fun titleWithCountdown(
     routeNames: List<String>,
     baseTitle: String,
     countdownSeconds: Long?,
     maxLength: Int = 50,
-): String {
-    if (countdownSeconds == null) return baseTitle
-    val prefix = "${formatTrackingCountdown(countdownSeconds)} · "
-    if (routeNames.isEmpty()) return (prefix + baseTitle).take(maxLength)
-    val routeMax = (maxLength - prefix.length).coerceAtLeast(8)
-    return prefix + fitRouteTitle(routeNames, routeMax)
-}
+): String = buildTrackingNotificationTitle(
+    routeNames = routeNames,
+    baseTitle = baseTitle,
+    countdown = TrackingTitleCountdown(leftSeconds = countdownSeconds),
+    maxLength = maxLength,
+)

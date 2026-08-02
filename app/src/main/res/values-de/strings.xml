@@ -125,7 +125,13 @@
     <string name="settings_near_departure_check_seconds">%d s</string>
     <string name="settings_near_departure_check_default">%d s (Standard)</string>
     <string name="settings_tracking_notification_countdown">Abfahrt-Countdown in der Benachrichtigung</string>
-    <string name="settings_tracking_notification_countdown_hint">Zeigt die verbleibende Zeit als M:SS im Titel der Tracking-Benachrichtigung an, solange eine Verbindung überwacht wird.</string>
+    <string name="settings_tracking_notification_countdown_hint">Zeigt die verbleibende Zeit als M:SS links im Titel der Tracking-Benachrichtigung vor der Abfahrt.</string>
+    <string name="settings_tracking_notification_arrival_countdown">Ankunft-Countdown in der Benachrichtigung</string>
+    <string name="settings_tracking_notification_arrival_countdown_hint">Nach der Abfahrt zeigt die verbleibende Zeit als M:SS rechts im Titel der Tracking-Benachrichtigung bis zur Ankunft.</string>
+    <string name="tracking_notification_action_stop">Verfolgung beenden</string>
+    <string name="tracking_notification_action_share">Teilen</string>
+    <string name="platform_change_notification_title">Gleisänderung</string>
+    <string name="platform_change_notification_body">%1$s: Gleis %2$s → %3$s (%4$s → %5$s)</string>
     <string name="stop_tracking">Entfernen</string>
     <string name="track_journey">Verfolgen</string>
     <string name="share_journey">Verbindung teilen</string>

@@ -51,6 +51,7 @@ fun SettingsScreen(
     val delayNotificationIncrement by viewModel.delayNotificationIncrementMinutes.collectAsState()
     val nearDepartureCheckSeconds by viewModel.nearDepartureCheckIntervalSeconds.collectAsState()
     val trackingNotificationCountdownEnabled by viewModel.trackingNotificationCountdownEnabled.collectAsState()
+    val trackingNotificationArrivalCountdownEnabled by viewModel.trackingNotificationArrivalCountdownEnabled.collectAsState()
     val autoUpdateEnabled by viewModel.autoUpdateEnabled.collectAsState()
     val activity = LocalContext.current as? AppCompatActivity
     var searchQuery by remember { mutableStateOf("") }
@@ -82,6 +83,8 @@ fun SettingsScreen(
         },
         trackingNotificationCountdownEnabled = trackingNotificationCountdownEnabled,
         onTrackingNotificationCountdownChange = viewModel::setTrackingNotificationCountdownEnabled,
+        trackingNotificationArrivalCountdownEnabled = trackingNotificationArrivalCountdownEnabled,
+        onTrackingNotificationArrivalCountdownChange = viewModel::setTrackingNotificationArrivalCountdownEnabled,
         autoUpdateEnabled = autoUpdateEnabled,
         onAutoUpdateEnabledChange = viewModel::setAutoUpdateEnabled,
         onOpenClaims = onOpenClaims,

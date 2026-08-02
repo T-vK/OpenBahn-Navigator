@@ -28,8 +28,8 @@ fun Journey.withRealtimeFrom(refreshed: Journey): Journey {
         val ref = refreshed.legs.getOrNull(index) ?: return@mapIndexed leg
         val refStops = ref.realtimeReferenceStops()
         leg.copy(
-            origin = leg.origin.withRealtimeFrom(ref.origin),
-            destination = leg.destination.withRealtimeFrom(ref.destination),
+            origin = listOf(leg.origin.withRealtimeFrom(ref.origin)).withDelaysFrom(refStops).first(),
+            destination = listOf(leg.destination.withRealtimeFrom(ref.destination)).withDelaysFrom(refStops).first(),
             intermediateStops = leg.intermediateStops.withDelaysFrom(refStops),
             priorStops = leg.priorStops.withDelaysFrom(refStops),
             routeStops = when {

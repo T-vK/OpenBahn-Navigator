@@ -88,10 +88,35 @@ class TrackingNotificationFormatterTest {
         val content = formatter.format(
             listOf(item),
             now = at("2026-05-30T12:36:00"),
-            showCountdown = true,
+            showDepartureCountdown = true,
         )!!
 
         assertEquals("0:00 · Hamburg -> Berlin", content.title)
+    }
+
+    @Test
+    fun single_withArrivalCountdown_suffixesTitleAfterDeparture() {
+        val item = tracked(
+            from = "Hamburg",
+            to = "Berlin",
+            legs = listOf(
+                leg(
+                    originName = "Hamburg",
+                    destName = "Berlin",
+                    depScheduled = "2026-05-30T12:30:00",
+                    arrScheduled = "2026-05-30T16:02:00",
+                    lineName = "RE3",
+                ),
+            ),
+        )
+
+        val content = formatter.format(
+            listOf(item),
+            now = at("2026-05-30T13:00:00"),
+            showArrivalCountdown = true,
+        )!!
+
+        assertEquals("Hamburg -> Berlin · 182:00", content.title)
     }
 
     @Test

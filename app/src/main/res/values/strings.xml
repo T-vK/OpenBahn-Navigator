@@ -125,7 +125,13 @@
     <string name="settings_near_departure_check_seconds">%d s</string>
     <string name="settings_near_departure_check_default">%d s (default)</string>
     <string name="settings_tracking_notification_countdown">Departure countdown in notification</string>
-    <string name="settings_tracking_notification_countdown_hint">Shows remaining time as M:SS in the tracking notification title while a connection is monitored.</string>
+    <string name="settings_tracking_notification_countdown_hint">Shows remaining time as M:SS on the left of the tracking notification title before departure.</string>
+    <string name="settings_tracking_notification_arrival_countdown">Arrival countdown in notification</string>
+    <string name="settings_tracking_notification_arrival_countdown_hint">After departure, shows remaining time as M:SS on the right of the tracking notification title until arrival.</string>
+    <string name="tracking_notification_action_stop">Stop tracking</string>
+    <string name="tracking_notification_action_share">Share</string>
+    <string name="platform_change_notification_title">Platform change</string>
+    <string name="platform_change_notification_body">%1$s: platform %2$s → %3$s (%4$s → %5$s)</string>
     <string name="stop_tracking">Remove</string>
     <string name="track_journey">Track</string>
     <string name="share_journey">Share connection</string>

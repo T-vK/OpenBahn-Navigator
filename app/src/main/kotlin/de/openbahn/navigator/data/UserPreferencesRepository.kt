@@ -58,6 +58,11 @@ class UserPreferencesRepository(private val context: Context) {
         it[KEY_TRACKING_NOTIFICATION_COUNTDOWN] ?: false
     }
 
+    /** Show arrival countdown on the right of the title after departure. */
+    val trackingNotificationArrivalCountdownEnabled: Flow<Boolean> = dataStore.data.map {
+        it[KEY_TRACKING_NOTIFICATION_ARRIVAL_COUNTDOWN] ?: false
+    }
+
     val batteryOptimizationPromptDismissed: Flow<Boolean> = dataStore.data.map {
         it[KEY_BATTERY_OPTIMIZATION_DISMISSED] ?: false
     }
@@ -110,6 +115,10 @@ class UserPreferencesRepository(private val context: Context) {
 
     suspend fun setTrackingNotificationCountdownEnabled(enabled: Boolean) {
         dataStore.edit { it[KEY_TRACKING_NOTIFICATION_COUNTDOWN] = enabled }
+    }
+
+    suspend fun setTrackingNotificationArrivalCountdownEnabled(enabled: Boolean) {
+        dataStore.edit { it[KEY_TRACKING_NOTIFICATION_ARRIVAL_COUNTDOWN] = enabled }
     }
 
     suspend fun setBatteryOptimizationPromptDismissed(dismissed: Boolean) {
@@ -184,6 +193,8 @@ class UserPreferencesRepository(private val context: Context) {
         private val KEY_NEAR_DEPARTURE_CHECK_SECONDS = intPreferencesKey("near_departure_check_seconds")
         private val KEY_TRACKING_NOTIFICATION_COUNTDOWN =
             booleanPreferencesKey("tracking_notification_countdown_enabled")
+        private val KEY_TRACKING_NOTIFICATION_ARRIVAL_COUNTDOWN =
+            booleanPreferencesKey("tracking_notification_arrival_countdown_enabled")
         private val KEY_BATTERY_OPTIMIZATION_DISMISSED =
             booleanPreferencesKey("battery_optimization_prompt_dismissed")
         private val KEY_PASSENGER_RIGHTS_NOTIFICATIONS =

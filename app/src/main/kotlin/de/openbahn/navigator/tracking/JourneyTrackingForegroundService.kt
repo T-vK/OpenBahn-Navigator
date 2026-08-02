@@ -70,8 +70,8 @@ class JourneyTrackingForegroundService : Service() {
         while (serviceScope.isActive) {
             val active = repository.getActiveWithJourneyForWorker()
             if (active.isEmpty()) break
-            val countdownEnabled = userPreferences.trackingNotificationCountdownEnabled.first()
-            updateForegroundNotification(active, showCountdown = countdownEnabled)
+            val (departureCountdown, arrivalCountdown) = countdownPreferences(userPreferences)
+            updateForegroundNotification(active, departureCountdown, arrivalCountdown)
             try {
                 delayCheck.run()
             } catch (e: Exception) {
@@ -80,7 +80,8 @@ class JourneyTrackingForegroundService : Service() {
             // Reload after the delay check so the notification reflects freshly refreshed times.
             val refreshed = repository.getActiveWithJourneyForWorker()
             if (refreshed.isEmpty()) break
-            updateForegroundNotification(refreshed, showCountdown = countdownEnabled)
+            val (departureAfter, arrivalAfter) = countdownPreferences(userPreferences)
+            updateForegroundNotification(refreshed, departureAfter, arrivalAfter)
             val departures = refreshed.mapNotNull { parseJourneyDateTime(it.entity.departureIso) }
             val nearInterval = userPreferences.nearDepartureCheckIntervalSeconds.first()
             val waitMs = TrackingRefreshPolicy.delayUntilNextCheckMillis(
@@ -91,31 +92,45 @@ class JourneyTrackingForegroundService : Service() {
         }
     }
 
-    /** Updates the notification every second while the countdown preference is enabled. */
+    /** Updates the notification every second while a countdown preference is enabled. */
     private suspend fun runCountdownTicker() {
         val repository = getKoin().get<TrackedJourneyRepository>()
         val userPreferences = getKoin().get<UserPreferencesRepository>()
         while (serviceScope.isActive) {
-            if (!userPreferences.trackingNotificationCountdownEnabled.first()) {
+            val (departureCountdown, arrivalCountdown) = countdownPreferences(userPreferences)
+            if (!departureCountdown && !arrivalCountdown) {
                 delay(1_000)
                 continue
             }
             val active = repository.getActiveWithJourneyForWorker()
             if (active.isEmpty()) break
-            updateForegroundNotification(active, showCountdown = true)
+            updateForegroundNotification(active, departureCountdown, arrivalCountdown)
             delay(1_000)
         }
     }
 
+    private suspend fun countdownPreferences(
+        userPreferences: UserPreferencesRepository,
+    ): Pair<Boolean, Boolean> {
+        val departure = userPreferences.trackingNotificationCountdownEnabled.first()
+        val arrival = userPreferences.trackingNotificationArrivalCountdownEnabled.first()
+        return departure to arrival
+    }
+
     private fun updateForegroundNotification(
         tracked: List<TrackedJourneyWithJourney>,
-        showCountdown: Boolean,
+        showDepartureCountdown: Boolean,
+        showArrivalCountdown: Boolean,
     ) {
         val manager = getSystemService(NOTIFICATION_SERVICE) as android.app.NotificationManager
         manager.notify(
             NOTIFICATION_ID,
             buildForegroundNotification(
-                notificationFormatter.format(tracked, showCountdown = showCountdown),
+                notificationFormatter.format(
+                    tracked,
+                    showDepartureCountdown = showDepartureCountdown,
+                    showArrivalCountdown = showArrivalCountdown,
+                ),
             ),
         )
     }
@@ -140,6 +155,16 @@ class JourneyTrackingForegroundService : Service() {
             .setOnlyAlertOnce(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setContentIntent(openApp)
+            .addAction(
+                0,
+                getString(R.string.tracking_notification_action_share),
+                trackingActionPendingIntent(TrackingNotificationIntent.ACTION_SHARE_TRACKING, 1),
+            )
+            .addAction(
+                0,
+                getString(R.string.tracking_notification_action_stop),
+                trackingActionPendingIntent(TrackingNotificationIntent.ACTION_STOP_TRACKING, 2),
+            )
         if (content != null) {
             // Join every line into one BigTextStyle block so long routes/timelines wrap onto
             // multiple lines instead of being truncated with an ellipsis (as InboxStyle does).
@@ -150,6 +175,18 @@ class JourneyTrackingForegroundService : Service() {
             )
         }
         return builder.build()
+    }
+
+    private fun trackingActionPendingIntent(action: String, requestCode: Int): PendingIntent {
+        val intent = Intent(this, TrackingNotificationActionReceiver::class.java).apply {
+            this.action = action
+        }
+        return PendingIntent.getBroadcast(
+            this,
+            requestCode,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
     }
 
     private class AndroidTrackingNotificationStrings(

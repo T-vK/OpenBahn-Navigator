@@ -139,4 +139,46 @@ class JourneyRealtimeTest {
         assertEquals("5", via.platform)
         assertEquals("2026-06-01T09:28:00", via.prognosedTime)
     }
+
+    @Test
+    fun withRealtimeFrom_appliesOriginPlatformFromRouteStops() {
+        val search = Journey(
+            id = "j1",
+            legs = listOf(
+                Leg(
+                    origin = StopEvent(
+                        "Hamburg Hbf",
+                        scheduledTime = "2026-06-01T08:00:00",
+                        platform = "3",
+                        id = "8002549",
+                    ),
+                    destination = StopEvent("Berlin Hbf", scheduledTime = "2026-06-01T11:00:00", id = "8011160"),
+                ),
+            ),
+            durationMinutes = 180,
+            transfers = 0,
+            departure = "2026-06-01T08:00:00",
+            arrival = "2026-06-01T11:00:00",
+        )
+        val refreshed = search.copy(
+            legs = listOf(
+                search.legs.single().copy(
+                    origin = search.legs.single().origin.copy(platform = "3"),
+                    routeStops = listOf(
+                        StopEvent(
+                            "Hamburg Hbf",
+                            scheduledTime = "2026-06-01T08:00:00",
+                            platform = "7",
+                            id = "8002549",
+                        ),
+                        StopEvent("Berlin Hbf", scheduledTime = "2026-06-01T11:00:00", id = "8011160"),
+                    ),
+                ),
+            ),
+        )
+
+        val merged = search.withRealtimeFrom(refreshed)
+
+        assertEquals("7", merged.legs.single().origin.platform)
+    }
 }
